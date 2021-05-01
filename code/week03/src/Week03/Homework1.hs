@@ -39,11 +39,37 @@ data VestingDatum = VestingDatum
 
 PlutusTx.unstableMakeIsData ''VestingDatum
 
+-- wallet 1 has: 21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9
+-- wallet 2 has: 39f713d0a644253f04529421b9f51b9b08979d08295959c4f3990ee617f5139f
+
+
 {-# INLINABLE mkValidator #-}
 -- This should validate if either beneficiary1 has signed the transaction and the current slot is before or at the deadline
 -- or if beneficiary2 has signed the transaction and the deadline has passed.
 mkValidator :: VestingDatum -> () -> ScriptContext -> Bool
-mkValidator _ _ _ = False -- FIX ME!
+mkValidator dat () ctx =
+    (isSignedBy1 && traceIfFalse "deadline has passed for beneficary-1" checkDeadlineNotReached) ||
+    (isSignedBy2 && traceIfFalse "deadline not reached for beneficiary-2" checkDeadlineExpired)
+  where
+    info :: TxInfo
+    info = scriptContextTxInfo ctx
+
+    isSignedBy :: PubKeyHash -> Bool
+    isSignedBy b = b `elem` txInfoSignatories info
+
+    isSignedBy1 :: Bool 
+    isSignedBy1 = isSignedBy (beneficiary1 dat)
+
+    isSignedBy2 :: Bool 
+    isSignedBy2 = isSignedBy (beneficiary2 dat)
+
+    checkDeadlineNotReached :: Bool 
+    checkDeadlineNotReached = to (deadline dat) `contains` txInfoValidRange info
+
+    checkDeadlineExpired :: Bool
+    checkDeadlineExpired = from (deadline dat) `contains` txInfoValidRange info
+
+    -- note: checkDeadlineNotReached is not a simple negation of checkDeadlineExpired
 
 data Vesting
 instance Scripts.ScriptType Vesting where
