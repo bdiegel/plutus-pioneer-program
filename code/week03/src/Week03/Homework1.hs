@@ -54,14 +54,11 @@ mkValidator dat () ctx =
     info :: TxInfo
     info = scriptContextTxInfo ctx
 
-    isSignedBy :: PubKeyHash -> Bool
-    isSignedBy b = b `elem` txInfoSignatories info
-
     isSignedBy1 :: Bool 
-    isSignedBy1 = isSignedBy (beneficiary1 dat)
+    isSignedBy1 = txSignedBy info (beneficiary1 dat)
 
     isSignedBy2 :: Bool 
-    isSignedBy2 = isSignedBy (beneficiary2 dat)
+    isSignedBy2 = txSignedBy info (beneficiary2 dat)
 
     checkDeadlineNotReached :: Bool 
     checkDeadlineNotReached = to (deadline dat) `contains` txInfoValidRange info
