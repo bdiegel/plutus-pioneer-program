@@ -64,7 +64,7 @@ mkValidator dat () ctx =
     checkDeadlineNotReached = to (deadline dat) `contains` txInfoValidRange info
 
     checkDeadlineExpired :: Bool
-    checkDeadlineExpired = from (deadline dat) `contains` txInfoValidRange info
+    checkDeadlineExpired = from (1 + deadline dat) `contains` txInfoValidRange info
 
     -- note: checkDeadlineNotReached is not a simple negation of checkDeadlineExpired
 
