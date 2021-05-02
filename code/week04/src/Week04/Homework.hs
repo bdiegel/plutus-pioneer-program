@@ -48,7 +48,6 @@ payTrace :: Integer -> Integer -> EmulatorTrace ()
 --payTrace x y = undefined -- IMPLEMENT ME!
 payTrace x y = do
     h <- activateContractWallet (Wallet 1) payContract
-    -- h2 <- activateContractWallet (Wallet 1) payContract
     callEndpoint @"pay" h $ PayParams 
         { ppRecipient = pubKeyHash $ walletPubKey $ Wallet 2
         , ppLovelace = x
@@ -77,6 +76,7 @@ payTest2 = runEmulatorTraceIO $ payTrace 1000000000 2000000
    Slot 00001: *** CONTRACT STOPPED WITH ERROR: "\"WalletError (InsufficientFunds \\\"Total: Value (Map [(,Map [(\\\\\\\"\\\\\\\",100000000)])]) expected: Value (Map [(,Map [(\\\\\\\"\\\\\\\",1000000010)])])\\\")\""
 
    // example: logged error caught by handler
-   Slot 00001: *** CONTRACT STOPPED WITH ERROR: "\"WalletError (InsufficientFunds \\\"Total: Value (Map [(,Map [(\\\\\\\"\\\\\\\",100000000)])]) expected: Value (Map [(,Map [(\\\\\\\"\\\\\\\",1000000010)])])\\\")\""
+   Slot 00001: *** CONTRACT LOG: "caught err: WalletError (InsufficientFunds \"Total: Value (Map [(,Map [(\\\"\\\",100000000)])]) expected: Value (Map [(,Map [(\\\"\\\",1000000010)])])\")" 
+   Slot 00001: 00000000-0000-4000-8000-000000000000 {Contract instance for wallet 1}:
    Contract instance stopped (no errors)
 -}
