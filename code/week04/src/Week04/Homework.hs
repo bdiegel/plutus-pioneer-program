@@ -39,15 +39,15 @@ payContract = do
 payTrace :: Integer -> Integer -> EmulatorTrace ()
 --payTrace x y = undefined -- IMPLEMENT ME!
 payTrace x y = do
-    h1 <- activateContractWallet (Wallet 1) payContract
-    h2 <- activateContractWallet (Wallet 1) payContract
-    callEndpoint @"pay" h1 $ PayParams 
+    h <- activateContractWallet (Wallet 1) payContract
+    -- h2 <- activateContractWallet (Wallet 1) payContract
+    callEndpoint @"pay" h $ PayParams 
         { ppRecipient = pubKeyHash $ walletPubKey $ Wallet 2
         , ppLovelace = x
         }
     s1 <- waitUntilSlot 1
     Extras.logInfo $ "reached slot " ++ show s1
-    callEndpoint @"pay" h2 $ PayParams 
+    callEndpoint @"pay" h $ PayParams 
         { ppRecipient = pubKeyHash $ walletPubKey $ Wallet 2
         , ppLovelace = y
         }
