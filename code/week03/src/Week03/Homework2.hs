@@ -14,7 +14,7 @@
 module Week03.Homework2 where
 
 import           Control.Monad        hiding (fmap)
-import           Data.Aeson           (ToJSON, FromJSON)
+import           Data.Aeson           (ToJSON, FromJSON, Value (Bool))
 import           Data.Map             as Map
 import           Data.Text            (Text)
 import           Data.Void            (Void)
@@ -32,23 +32,69 @@ import           Playground.Types     (KnownCurrency (..))
 import           Prelude              (Semigroup (..))
 import           Text.Printf          (printf)
 
+{-
+   description: This is a Paramaterized version of Vesting contract defined by Vesting.hs.
+   
+   Note that this is not the same as the homework 1 contract - where the the goal was to
+   add a second beneficiary. This is the original signal beneficiary contract, so we only
+   need to verify that the beneficiary has signed and that the deadline has been reached.
+-}
+
 {-# INLINABLE mkValidator #-}
 mkValidator :: PubKeyHash -> Slot -> () -> ScriptContext -> Bool
-mkValidator _ _ _ _ = False -- FIX ME!
+mkValidator sig slot _ ctx =
+    traceIfFalse "not signed by beneficiary" (not (txSignedBy info sig)) &&
+    traceIfFalse "deadline not reached"      checkDeadline
+  where
+    info :: TxInfo
+    info = scriptContextTxInfo ctx
+
+    checkDeadline :: Bool
+    checkDeadline = from slot `contains` txInfoValidRange info
+
 
 data Vesting
 instance Scripts.ScriptType Vesting where
     type instance DatumType Vesting = Slot
     type instance RedeemerType Vesting = ()
 
+{- 
+   This is almost the same as inst defined by example Parameterized.hs 
+   We need to match the type of mkValidator, which takes PubKeyHash (p) and Slot
+   Note that RedeemerType is ().
+
+   This is binding the script contract to the PubKeyHash specified by the give 
+   transaction in the off-chain code.
+-}
 inst :: PubKeyHash -> Scripts.ScriptInstance Vesting
-inst = undefined -- IMPLEMENT ME!
+inst p = Scripts.validator @Vesting
+    ($$(PlutusTx.compile [|| mkValidator ||]) `PlutusTx.applyCode` PlutusTx.liftCode p)
+    $$(PlutusTx.compile [|| wrap ||])
+  where
+    wrap = Scripts.wrapValidator @Slot @()
 
+{-
+   Note here the type change - the validator now expects a PubKeyHash
+
+   The following expression is equivalent to the definition below:
+       validator p = Scripts.validatorScript $ inst p
+
+   Since the validator and inst functions both take the same argument, we can eta-reduce
+   the expression and remove the parameter altogether. Also note that we used composition (.) 
+   rather than function application ($) in the reduced expression.
+-}
 validator :: PubKeyHash -> Validator
-validator = undefined -- IMPLEMENT ME!
+validator = Scripts.validatorScript . inst
 
+
+{-
+   Note here the type change from the Vesting.hs example. 
+   
+   The expression below is equivalent to:
+      scrAddress p = scriptAddress $ validator p
+-}
 scrAddress :: PubKeyHash -> Ledger.Address
-scrAddress = undefined -- IMPLEMENT ME!
+scrAddress = scriptAddress . validator
 
 data GiveParams = GiveParams
     { gpBeneficiary :: !PubKeyHash
