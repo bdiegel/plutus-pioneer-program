@@ -10,7 +10,8 @@ module Week04.Homework where
 import Control.Monad.Freer.Extras as Extras
 import Data.Aeson                 (FromJSON, ToJSON)
 import Data.Functor               (void)
-import Data.Text                  (Text)
+import Data.Text                  (Text, unpack)
+import Data.Void                  (Void)
 import GHC.Generics               (Generic)
 import Ledger
 import Ledger.Ada                 as Ada
@@ -26,12 +27,19 @@ data PayParams = PayParams
 
 type PaySchema = BlockchainActions .\/ Endpoint "pay" PayParams
 
-payContract :: Contract () PaySchema Text ()
-payContract = do
+payContract' :: Contract () PaySchema Text ()
+payContract' = do
+    -- this will block until the endpoint is called
     pp <- endpoint @"pay"
     let tx = mustPayToPubKey (ppRecipient pp) $ lovelaceValueOf $ ppLovelace pp
     void $ submitTx tx
-    payContract
+    -- we recursively call ourself in order to allow any number of payments
+    payContract'
+
+payContract :: Contract () PaySchema Void ()
+payContract = Contract.handleError 
+    (\err -> Contract.logError  $ "caught err: " ++ unpack err) 
+    payContract'
 
 -- A trace that invokes the pay endpoint of payContract on Wallet 1 twice, each time with Wallet 2 as
 -- recipient, but with amounts given by the two arguments. There should be a delay of one slot
@@ -59,5 +67,16 @@ payTrace x y = do
 payTest1 :: IO ()
 payTest1 = runEmulatorTraceIO $ payTrace 1000000 2000000
 
+-- this test will generate a WalletError for InsufficientFunds
+-- we must add handling to payContract to handle error and prevent contract from crashing
 payTest2 :: IO ()
 payTest2 = runEmulatorTraceIO $ payTrace 1000000000 2000000
+
+{-
+   // example: fatal error before handling was added
+   Slot 00001: *** CONTRACT STOPPED WITH ERROR: "\"WalletError (InsufficientFunds \\\"Total: Value (Map [(,Map [(\\\\\\\"\\\\\\\",100000000)])]) expected: Value (Map [(,Map [(\\\\\\\"\\\\\\\",1000000010)])])\\\")\""
+
+   // example: logged error caught by handler
+   Slot 00001: *** CONTRACT STOPPED WITH ERROR: "\"WalletError (InsufficientFunds \\\"Total: Value (Map [(,Map [(\\\\\\\"\\\\\\\",100000000)])]) expected: Value (Map [(,Map [(\\\\\\\"\\\\\\\",1000000010)])])\\\")\""
+   Contract instance stopped (no errors)
+-}
